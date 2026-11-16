@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>COOK45 // WORKSTATION DE AGENTES & ENGENHARIA LOCAL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-0: #08080a;
+      --bg-1: #0e0e12;
+      --bg-2: #14141a;
+      --bg-3: #1c1c24;
+      --line: #23232d;
+      --line-strong: #323240;
+      --text-0: #f3f3f6;
+      --text-1: #b4b4c2;
+      --text-2: #727284;
+      --amber: #f59e0b;
+      --amber-dim: rgba(245, 158, 11, 0.12);
+      --emerald: #10b981;
+      --emerald-dim: rgba(16, 185, 129, 0.12);
+      --crimson: #ef4444;
+      --blue: #3b82f6;
+      --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: var(--bg-0);
+      color: var(--text-0);
+      font-family: var(--font-sans);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-0); }
+    ::-webkit-scrollbar-thumb { background: var(--line-strong); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--amber); }
+
+    /* ESTRUTURA INDUSTRIAL EM GRID DE 3 COLUNAS */
+    .workstation {
+      display: grid;
+      grid-template-columns: 290px 1fr 370px;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    .workstation.right-collapsed {
+      grid-template-columns: 290px 1fr 0px;
+    }
+
+    /* COLUNA ESQUERDA: AGENTES & OPERAÇÕES */
+    .sidebar {
+      background: var(--bg-1);
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      user-select: none;
+    }
+
+    .brand-bar {
+      height: 54px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-id {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .led {
+      width: 8px;
+      height: 8px;
+      background: var(--amber);
+      box-shadow: 0 0 10px var(--amber);
+    }
+
+    .brand-title {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .brand-sub {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--amber);
+      border: 1px solid var(--amber);
+      padding: 2px 5px;
+      background: var(--amber-dim);
+    }
+
+    .sec-header {
+      padding: 14px 16px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-2);
+    }
+
+    .btn-mini {
+      background: var(--bg-2);
+      border: 1px solid var(--line-strong);
+      color: var(--text-0);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 3px 8px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+    }
+
+    .btn-mini:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+
+    .agent-list {
+      padding: 0 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 255px;
+      overflow-y: auto;
+    }
+
+    .agent-card {
+      padding: 10px 12px;
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      cursor: pointer;
+      transition: all 0.12s ease;
+      position: relative;
+    }
+
+    .agent-card:hover {
+      border-color: var(--line-strong);
+      background: var(--bg-3);
+    }
+
+    .agent-card.active {
+      border-color: var(--amber);
+      background: linear-gradient(90deg, rgba(245,158,11,0.10) 0%, rgba(20,20,26,0.95) 100%);
+    }
+
+    .agent-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .agent-name {
+      font-weight: 600;
+      font-size: 12.5px;
+      color: var(--text-0);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .agent-badge {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      padding: 1px 5px;
+      border: 1px solid var(--line-strong);
+      color: var(--text-1);
+    }
+
+    .agent-role {
+      font-size: 11px;
+      color: var(--text-2);
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .session-list {
+      flex: 1;
+      padding: 0 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .session-item {
+      padding: 8px 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-1);
+    }
+
+    .session-item:hover {
+      background: var(--bg-2);
+      border-color: var(--line);
+    }
+
+    .session-item.active {
+      background: var(--bg-2);
+      border-color: var(--line-strong);
+      color: var(--text-0);
+      border-left: 2px solid var(--amber);
+    }
+
+    .session-title {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 195px;
+    }
+
+    .session-del {
+      opacity: 0;
+      color: var(--text-2);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 0 4px;
+    }
+
+    .session-item:hover .session-del { opacity: 1; }
+    .session-del:hover { color: var(--crimson); }
+
+    .quick-ops {
+      padding: 12px;
+      border-top: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: var(--bg-0);
+    }
+
+    .op-btn {
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      color: var(--text-1);
+      padding: 8px 8px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.12s;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .op-btn strong {
+      color: var(--text-0);
+      font-size: 11px;
+    }
+
+    .op-btn:hover {
+      border-color: var(--amber);
+      background: var(--bg-3);
+    }
+
+    /* COLUNA CENTRAL: CONSOLE DE CHAT & EXECUÇÃO */
+    .main-stage {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--bg-0);
+      overflow: hidden;
+    }
+
+    .topbar {
+      height: 54px;
+      border-bottom: 1px solid var(--line);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-1);
+    }
+
+    .telemetry-strip {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-1);
+    }
+
+    .stat-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+    }
+
+    .stat-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--emerald);
+    }
+
+    .top-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .select-tech {
+      background: var(--bg-2);
+      border: 1px solid var(--line-strong);
+      color: var(--text-0);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 6px 10px;
+      outline: none;
+    }
+
+    .btn-tech {
+      background: var(--bg-2);
+      border: 1px solid var(--line-strong);
+      color: var(--text-0);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 6px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.12s;
+    }
+
+    .btn-tech:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+
+    .btn-tech.primary {
+      background: var(--amber);
+      color: #000;
+      border-color: var(--amber);
+      font-weight: 700;
+    }
+
+    .btn-tech.primary:hover {
+      background: #fbbf24;
+      color: #000;
+    }
+
+    /* STREAM DE MENSAGENS */
+    .chat-stream {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .welcome-Hero {
+      border: 1px solid var(--line);
+      background: var(--bg-1);
+      padding: 24px;
+      margin-bottom: 8px;
+    }
+
+    .welcome-kicker {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 8px;
+    }
+
+    .welcome-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .welcome-desc {
+      font-size: 13.5px;
+      color: var(--text-1);
+      line-height: 1.55;
+      margin-bottom: 18px;
+    }
+
+    .prompt-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 10px;
+    }
+
+    .prompt-card {
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+
+    .prompt-card:hover {
+      border-color: var(--amber);
+      transform: translateY(-1px);
+    }
+
+    .prompt-card-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--amber);
+      margin-bottom: 4px;
+    }
+
+    .prompt-card-text {
+      font-size: 12.5px;
+      color: var(--text-0);
+      line-height: 1.4;
+    }
+
+    .msg-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border-left: 2px solid var(--line-strong);
+      padding-left: 16px;
+    }
+
+    .msg-row.user {
+      border-left-color: var(--blue);
+    }
+
+    .msg-row.assistant {
+      border-left-color: var(--amber);
+    }
+
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--text-2);
+      text-transform: uppercase;
+    }
+
+    .msg-author {
+      font-weight: 700;
+      color: var(--text-0);
+    }
+
+    .msg-provider-tag {
+      padding: 1px 6px;
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      color: var(--emerald);
+    }
+
+    .msg-body {
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--text-0);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg-body pre {
+      background: #050507;
+      border: 1px solid var(--line-strong);
+      padding: 12px 14px;
+      margin: 10px 0;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: #e4e4ef;
+      position: relative;
+    }
+
+    .msg-body code {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      background: var(--bg-2);
+      padding: 1px 5px;
+      border: 1px solid var(--line);
+      color: var(--amber);
+    }
+
+    .msg-body pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: inherit;
+    }
+
+    .tool-call-box {
+      margin: 6px 0;
+      background: var(--bg-1);
+      border: 1px solid var(--line-strong);
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+    }
+
+    .tool-call-head {
+      padding: 7px 12px;
+      background: var(--bg-2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      color: var(--amber);
+    }
+
+    .tool-call-details {
+      padding: 10px 12px;
+      border-top: 1px solid var(--line);
+      color: var(--text-1);
+      max-height: 260px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      display: none;
+    }
+
+    .tool-call-box.open .tool-call-details {
+      display: block;
+    }
+
+    /* CONSOLE DE INPUT */
+    .composer-wrap {
+      border-top: 1px solid var(--line);
+      background: var(--bg-1);
+      padding: 14px 20px;
+    }
+
+    .composer-Attachments {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .att-chip {
+      background: var(--bg-3);
+      border: 1px solid var(--amber);
+      color: var(--text-0);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 3px 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .att-chip button {
+      background: none;
+      border: none;
+      color: var(--crimson);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-weight: 700;
+    }
+
+    .composer-box {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .composer-input {
+      flex: 1;
+      background: var(--bg-0);
+      border: 1px solid var(--line-strong);
+      color: var(--text-0);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      padding: 12px 14px;
+      min-height: 52px;
+      max-height: 180px;
+      resize: vertical;
+      outline: none;
+      line-height: 1.45;
+    }
+
+    .composer-input:focus {
+      border-color: var(--amber);
+    }
+
+    .composer-actions {
+      display: flex;
+      gap: 6px;
+      height: 52px;
+    }
+
+    .btn-send {
+      background: var(--amber);
+      color: #000;
+      border: 1px solid var(--amber);
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 12px;
+      padding: 0 20px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .btn-send:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .composer-hint {
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--text-2);
+    }
+
+    /* COLUNA DIREITA: INSPETOR DE SISTEMA, TERMINAL, ARQUIVOS & MEMÓRIA */
+    .inspector {
+      background: var(--bg-1);
+      border-left: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .inspector-tabs {
+      height: 54px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .insp-tab {
+      background: var(--bg-1);
+      border: none;
+      border-right: 1px solid var(--line);
+      color: var(--text-2);
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .insp-tab.active {
+      background: var(--bg-2);
+      color: var(--amber);
+      border-bottom: 2px solid var(--amber);
+    }
+
+    .insp-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .insp-panel.active {
+      display: flex;
+    }
+
+    .term-box {
+      background: #050507;
+      border: 1px solid var(--line-strong);
+      padding: 10px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+    }
+
+    .term-input-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .term-input {
+      flex: 1;
+      background: var(--bg-1);
+      border: 1px solid var(--line-strong);
+      color: var(--emerald);
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      padding: 6px 8px;
+      outline: none;
+    }
+
+    .term-out {
+      color: var(--text-1);
+      max-height: 220px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .file-row {
+      padding: 6px 8px;
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .file-row:hover {
+      border-color: var(--amber);
+    }
+
+    /* MODAIS (POOL DE IAS & CRIADOR DE AGENTES) */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.78);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-window {
+      width: 100%;
+      max-width: 780px;
+      max-height: 88vh;
+      background: var(--bg-1);
+      border: 1px solid var(--amber);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-head {
+      padding: 14px 18px;
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--amber);
+    }
+
+    .modal-body {
+      padding: 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .prov-row {
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr 180px 220px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .field-group label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-1);
+    }
+
+    .field-input, .field-textarea {
+      background: var(--bg-0);
+      border: 1px solid var(--line-strong);
+      color: var(--text-0);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 8px 10px;
+      outline: none;
+    }
+
+    .field-textarea {
+      min-height: 130px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <div class="workstation" id="workstation">
+    <!-- BARRA LATERAL ESQUERDA -->
+    <aside class="sidebar">
+      <div class="brand-bar">
+        <div class="brand-id">
+          <span class="led"></span>
+          <span class="brand-title">COOK45 // CORE</span>
+        </div>
+        <span class="brand-sub">LOCAL v1.0</span>
+      </div>
+
+      <div class="sec-header">
+        <span>AGENTES ATIVOS</span>
+        <button class="btn-mini" onclick="openAgentModal()">+ CRIAR AGENTE</button>
+      </div>
+      <div class="agent-list" id="agentList"></div>
+
+      <div class="sec-header">
+        <span>SESSÕES DE OPERAÇÃO</span>
+        <button class="btn-mini" onclick="createNewSession()">+ NOVO CHAT</button>
+      </div>
+      <div class="session-list" id="sessionList"></div>
+
+      <div class="quick-ops">
+        <button class="op-btn" onclick="quickPrompt('Liste os processos que mais estão consumindo memória RAM no meu PC agora usando scan_processes.')">
+          <strong>[PROC] Processos</strong>
+          <span>Top RAM / PIDs ativos</span>
+        </button>
+        <button class="op-btn" onclick="promptPeInspect()">
+          <strong>[PE/COFF] Binário</strong>
+          <span>Entropia, Seções & Strings</span>
+        </button>
+        <button class="op-btn" onclick="quickPrompt('Vasculhe a pasta c:\\ e me dê um resumo técnico dos projetos instalados usando list_dir.')">
+          <strong>[DISK] Scan C:\</strong>
+          <span>Mapear diretórios locais</span>
+        </button>
+        <button class="op-btn" onclick="openProviderModal()">
+          <strong>[POOL] FreeLLM</strong>
+          <span>Chaves & Roteamento</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- PALCO CENTRAL: CONSOLE DE CHAT -->
+    <main class="main-stage">
+      <header class="topbar">
+        <div class="telemetry-strip">
+          <div class="stat-pill">
+            <span class="stat-dot"></span>
+            <span id="hostBadge">HOST: CARREGANDO...</span>
+          </div>
+          <div class="stat-pill" id="ghidraBadge">GHIDRA: --</div>
+        </div>
+
+        <div class="top-controls">
+          <select id="providerSelect" class="select-tech" title="Selecionar Motor de IA">
+            <option value="auto">ROTEADOR: AUTO FAILOVER POOL</option>
+          </select>
+          <button class="btn-tech" onclick="openProviderModal()">POOL DE IAs (FreeLLM)</button>
+          <button class="btn-tech" onclick="toggleInspector()">INSPETOR / TERMINAL</button>
+        </div>
+      </header>
+
+      <section class="chat-stream" id="chatStream"></section>
+
+      <footer class="composer-wrap">
+        <div class="composer-Attachments" id="attachmentList"></div>
+        <div class="composer-box">
+          <textarea
+            id="chatInput"
+            class="composer-input"
+            placeholder="Mande a missão pro agente (ex: 'analise o binário X', 'crie um script em c:\...', 'rode tal comando no PowerShell')..."
+          ></textarea>
+          <div class="composer-actions">
+            <button class="btn-tech" onclick="attachPathPrompt()" title="Anexar caminho de arquivo ou binário do PC">+ ARQUIVO PC</button>
+            <button class="btn-send" id="sendBtn" onclick="sendMessage()">EXECUTAR</button>
+          </div>
+        </div>
+        <div class="composer-hint">
+          <span>[ENTER] Dispara comando | [SHIFT+ENTER] Quebra linha | Ferramentas locais do Windows ATIVAS</span>
+          <span id="statusHint">PRONTO</span>
+        </div>
+      </footer>
+    </main>
+
+    <!-- COLUNA DIREITA: INSPETOR DE BAIXO NÍVEL -->
+    <aside class="inspector" id="inspectorPane">
+      <div class="inspector-tabs">
+        <button class="insp-tab active" onclick="switchInspTab('term', this)">TERMINAL & LOGS</button>
+        <button class="insp-tab" onclick="switchInspTab('files', this)">EXPLORADOR C:\</button>
+        <button class="insp-tab" onclick="switchInspTab('mem', this)">MEMÓRIA IA</button>
+      </div>
+
+      <!-- ABA 1: TERMINAL DIRETO & LOGS DE FERRAMENTAS -->
+      <div class="insp-panel active" id="tab-term">
+        <div class="sec-header" style="padding:0">
+          <span>POWERSHELL DIRETO (LOCALHOST)</span>
+        </div>
+        <div class="term-box">
+          <div class="term-input-row">
+            <input type="text" id="directCmdInput" class="term-input" placeholder="Ex: Get-Process | Select -First 10" onkeydown="if(event.key==='Enter') runDirectShell()" />
+            <button class="btn-mini" onclick="runDirectShell()">RODAR</button>
+          </div>
+          <div class="term-out" id="directCmdOut">Pronto para execução direta no PowerShell.</div>
+        </div>
+
+        <div class="sec-header" style="padding:4px 0 0">
+          <span>HISTÓRICO DE TOOLS DO AGENTE</span>
+          <button class="btn-mini" onclick="document.getElementById('toolLogList').innerHTML=''">LIMPAR</button>
+        </div>
+        <div id="toolLogList" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+
+      <!-- ABA 2: EXPLORADOR DE ARQUIVOS DO PC -->
+      <div class="insp-panel" id="tab-files">
+        <div class="term-input-row">
+          <input type="text" id="explorerPathInput" class="term-input" value="c:\" onkeydown="if(event.key==='Enter') browseDir(this.value)" />
+          <button class="btn-mini" onclick="browseDir(document.getElementById('explorerPathInput').value)">ABRIR</button>
+          <button class="btn-mini" onclick="browseUp()">⬆ SUBIR</button>
+        </div>
+        <div id="explorerList" style="display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+
+      <!-- ABA 3: MEMÓRIA PERMANENTE (ESTILO CLAUDE-MEM) -->
+      <div class="insp-panel" id="tab-mem">
+        <div class="field-group">
+          <label>NOVA MEMÓRIA PERMANENTE</label>
+          <input type="text" id="memKey" class="field-input" placeholder="Chave (ex: Conta GitHub, Offset Jogo X)" />
+          <input type="text" id="memContent" class="field-input" placeholder="Conteúdo para o agente nunca esquecer" />
+          <button class="btn-tech primary" style="justify-content:center;margin-top:4px" onclick="addMemoryManual()">SALVAR NA MEMÓRIA</button>
+        </div>
+        <div class="sec-header" style="padding:6px 0 0">
+          <span>FATOS GRAVADOS EM DISCO</span>
+        </div>
+        <div id="memoryList" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- MODAL 1: POOL DE PROVEDORES (FreeLLMAPI) -->
+  <div class="modal-backdrop" id="providerModal">
+    <div class="modal-window">
+      <div class="modal-head">
+        <span>POOL DE PROVEDORES DE IA GRATUITOS // FAILOVER AUTOMÁTICO</span>
+        <button class="btn-mini" onclick="closeProviderModal()">FECHAR [ESC]</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:12.5px;color:var(--text-1);line-height:1.5">
+          O <strong>cook45</strong> já vem com o roteador <strong>Pollinations Zero-Key</strong> ativo (funciona imediatamente sem chave) e com o seu token <strong>HuggingFace</strong> importado. Se quiser velocidade máxima (Groq / Gemini / Cerebras / OpenRouter), basta colar suas chaves gratuitas abaixo — se uma acabar a cota, ele pula pra próxima sozinho:
+        </p>
+        <div id="providerRows" style="display:flex;flex-direction:column;gap:8px"></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px">
+          <button class="btn-tech" onclick="closeProviderModal()">CANCELAR</button>
+          <button class="btn-tech primary" onclick="saveProviders()">SALVAR POOL DE IAs</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: CRIADOR / EDITOR DE AGENTES -->
+  <div class="modal-backdrop" id="agentModal">
+    <div class="modal-window" style="max-width:620px">
+      <div class="modal-head">
+        <span>CRIAR / PERSONALIZAR AGENTE AUTÔNOMO</span>
+        <button class="btn-mini" onclick="closeAgentModal()">FECHAR</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <label>NOME DO AGENTE</label>
+          <input type="text" id="agName" class="field-input" placeholder="Ex: Hacker de Rede // Wireshark & Packets" />
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 140px;gap:10px">
+          <div class="field-group">
+            <label>ESPECIALIDADE CURTA</label>
+            <input type="text" id="agRole" class="field-input" placeholder="Ex: Análise de protocolos, sockets e APIs" />
+          </div>
+          <div class="field-group">
+            <label>BADGE (TAG)</label>
+            <input type="text" id="agBadge" class="field-input" placeholder="NET-OPS" />
+          </div>
+        </div>
+        <div class="field-group">
+          <label>SYSTEM PROMPT (PERSONALIDADE E INSTRUÇÕES DO AGENTE)</label>
+          <textarea id="agPrompt" class="field-textarea" placeholder="Defina como esse agente pensa, age e responde..."></textarea>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:12px;cursor:pointer">
+          <input type="checkbox" id="agTools" checked />
+          Permitir que este agente execute comandos no PC, leia/crie arquivos e analise binários
+        </label>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px">
+          <button class="btn-tech" onclick="closeAgentModal()">CANCELAR</button>
+          <button class="btn-tech primary" onclick="saveCustomAgent()">CRIAR AGENTE</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let STATE = {
+      host: {},
+      config: { providers: [] },
+      agents: [],
+      memories: [],
+      sessions: [],
+      activeAgentId: 'cook45',
+      activeSessionId: null,
+      attachments: [],
+      busy: false
+    };
+
+    function escapeHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function formatMarkdown(text) {
+      let safe = escapeHtml(text);
+      // Blocos de código ```lang ... ```
+      safe = safe.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
+        return `<pre><div style="display:flex;justify-content:space-between;color:var(--amber);font-size:10px;margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:4px"><span>${lang || 'code'}</span><span style="cursor:pointer" onclick="navigator.clipboard.writeText(this.parentElement.nextElementSibling.innerText);this.innerText='COPIADO!'">[COPIAR]</span></div><code>${code.trim()}</code></pre>`;
+      });
+      // Inline code
+      safe = safe.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+      // Negrito
+      safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      return safe;
+    }
+
+    async function loadState() {
+      const r = await fetch('/api/state');
+      const d = await r.json();
+      if (!d.ok) return;
+      STATE.host = d.host;
+      STATE.config = d.config;
+      STATE.agents = d.agents;
+      STATE.memories = d.memories;
+      STATE.sessions = d.sessions || [];
+      STATE.activeAgentId = d.config.activeAgentId || (d.agents[0] && d.agents[0].id) || 'cook45';
+
+      if (!STATE.sessions.length) {
+        createNewSession(false);
+      } else if (!STATE.activeSessionId) {
+        STATE.activeSessionId = STATE.sessions[0].id;
+      }
+
+      renderAll();
+      browseDir('c:\\');
+    }
+
+    function renderAll() {
+      // Topbar Host Info
+      const h = STATE.host;
+      document.getElementById('hostBadge').textContent = `${h.hostname || 'PC'} // ${h.arch || 'x64'} // RAM ${h.freeMemGB || '?'}G LIVRE DE ${h.totalMemGB || '?'}G`;
+      const ghEl = document.getElementById('ghidraBadge');
+      ghEl.textContent = h.ghidraInstalled ? 'GHIDRA 12.2: DETECTADO' : 'GHIDRA: OFF';
+      ghEl.style.color = h.ghidraInstalled ? 'var(--emerald)' : 'var(--text-2)';
+
+      // Select de Provedores
+      const sel = document.getElementById('providerSelect');
+      const curVal = sel.value || 'auto';
+      sel.innerHTML = `<option value="auto">ROTEADOR: AUTO FAILOVER POOL</option>` +
+        (STATE.config.providers || [])
+          .filter(p => p.enabled)
+          .map(p => `<option value="${p.id}">${p.name} [${p.model}]</option>`)
+          .join('');
+      sel.value = curVal;
+
+      // Lista de Agentes
+      const agList = document.getElementById('agentList');
+      agList.innerHTML = STATE.agents.map(ag => `
+        <div class="agent-card ${ag.id === STATE.activeAgentId ? 'active' : ''}" onclick="selectAgent('${ag.id}')">
+          <div class="agent-card-top">
+            <span class="agent-name">
+              <span style="width:7px;height:7px;background:${ag.color || '#f59e0b'};display:inline-block"></span>
+              ${escapeHtml(ag.name)}
+            </span>
+            <span class="agent-badge">${escapeHtml(ag.badge || 'AGENT')}</span>
+          </div>
+          <div class="agent-role">${escapeHtml(ag.role)}</div>
+        </div>
+      `).join('');
+
+      // Lista de Sessões
+      const sList = document.getElementById('sessionList');
+      sList.innerHTML = STATE.sessions.map(s => `
+        <div class="session-item ${s.id === STATE.activeSessionId ? 'active' : ''}" onclick="selectSession('${s.id}')">
+          <span class="session-title">${escapeHtml(s.title || 'Operação sem título')}</span>
+          <span class="session-del" onclick="event.stopPropagation();deleteSession('${s.id}')" title="Excluir conversa">✕</span>
+        </div>
+      `).join('');
+
+      renderChatStream();
+      renderMemories();
+    }
+
+    function getActiveSession() {
+      return STATE.sessions.find(s => s.id === STATE.activeSessionId);
+    }
+
+    function getActiveAgent() {
+      return STATE.agents.find(a => a.id === STATE.activeAgentId) || STATE.agents[0];
+    }
+
+    function createNewSession(persist = true) {
+      const ag = getActiveAgent();
+      const s = {
+        id: 'sess_' + Date.now(),
+        title: `Op // ${ag ? ag.name.split('//')[0].trim() : 'cook45'}`,
+        agentId: STATE.activeAgentId,
+        createdAt: new Date().toISOString(),
+        messages: []
+      };
+      STATE.sessions.unshift(s);
+      STATE.activeSessionId = s.id;
+      if (persist) persistSessions();
+      renderAll();
+    }
+
+    function selectSession(id) {
+      STATE.activeSessionId = id;
+      const s = getActiveSession();
+      if (s && s.agentId && STATE.agents.some(a => a.id === s.agentId)) {
+        STATE.activeAgentId = s.agentId;
+      }
+      renderAll();
+    }
+
+    function deleteSession(id) {
+      STATE.sessions = STATE.sessions.filter(s => s.id !== id);
+      if (STATE.activeSessionId === id) {
+        if (!STATE.sessions.length) createNewSession(false);
+        else STATE.activeSessionId = STATE.sessions[0].id;
+      }
+      persistSessions();
+      renderAll();
+    }
+
+    async function persistSessions() {
+      try {
+        await fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessions: STATE.sessions })
+        });
+      } catch (_) {}
+    }
+
+    function selectAgent(id) {
+      STATE.activeAgentId = id;
+      const s = getActiveSession();
+      if (s) s.agentId = id;
+      renderAll();
+    }
+
+    function renderChatStream() {
+      const box = document.getElementById('chatStream');
+      const s = getActiveSession();
+      const ag = getActiveAgent();
+
+      if (!s || !s.messages.length) {
+        box.innerHTML = `
+          <div class="welcome-Hero">
+            <div class="welcome-kicker">SISTEMA OPERACIONAL DE AGENTES // SEM CENSURA OU TEMPLATES GENÉRICOS</div>
+            <div class="welcome-title">${escapeHtml(ag.name)} está na escuta, clack.</div>
+            <div class="welcome-desc">
+              Conectado direto ao seu Windows local (<code>${escapeHtml(STATE.host.rootDir || 'c:\\agente-cook45')}</code>).
+              Este agente tem permissão real para executar comandos PowerShell, ler e criar arquivos em qualquer disco, inspecionar executáveis PE/COFF (seções, entropia, packers, strings) e guardar memória permanente.
+            </div>
+            <div class="prompt-grid">
+              <div class="prompt-card" onclick="quickPrompt('Rode um diagnóstico rápido da minha máquina: CPU, processos que mais gastam RAM e espaço livre no disco C: usando run_shell.')">
+                <div class="prompt-card-tag">// TELEMETRIA DO PC</div>
+                <div class="prompt-card-text">Diagnóstico completo de processos, memória e discos via PowerShell</div>
+              </div>
+              <div class="prompt-card" onclick="quickPrompt('Liste os arquivos de c:\\mj3d e verifique como está o serve.cjs usando list_dir e read_file.')">
+                <div class="prompt-card-tag">// AUDITORIA DE PROJETO</div>
+                <div class="prompt-card-text">Inspecionar arquivos e estrutura de qualquer pasta do computador</div>
+              </div>
+              <div class="prompt-card" onclick="promptPeInspect()">
+                <div class="prompt-card-tag">// ENGENHARIA REVERSA PE/COFF</div>
+                <div class="prompt-card-text">Desmontar cabeçalho de um .exe ou .dll, medir entropia de packer e extrair strings</div>
+              </div>
+              <div class="prompt-card" onclick="openAgentModal()">
+                <div class="prompt-card-tag">// CRIADOR DE AGENTES</div>
+                <div class="prompt-card-text">Criar um novo agente especializado com prompt e ferramentas próprias</div>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      box.innerHTML = s.messages.map(m => {
+        const isUser = m.role === 'user';
+        const toolsHtml = (m.toolLogs || []).map(tl => `
+          <div class="tool-call-box" onclick="this.classList.toggle('open')">
+            <div class="tool-call-head">
+              <span>⚙ TOOL EXECUTADA: <strong>${escapeHtml(tl.tool)}</strong> (${tl.durationMs}ms)</span>
+              <span>[CLIQUE PARA VER RAW OUTPUT]</span>
+            </div>
+            <div class="tool-call-details">ARGS: ${escapeHtml(JSON.stringify(tl.args))}\n\nRESULTADO:\n${escapeHtml(JSON.stringify(tl.result, null, 2))}</div>
+          </div>
+        `).join('');
+
+        return `
+          <div class="msg-row ${isUser ? 'user' : 'assistant'}">
+            <div class="msg-meta">
+              <span class="msg-author">${isUser ? 'CLACK // OPERADOR' : escapeHtml(m.agentName || ag.name)}</span>
+              <span>${m.time || ''}</span>
+              ${m.provider ? `<span class="msg-provider-tag">${escapeHtml(m.provider)}</span>` : ''}
+            </div>
+            ${toolsHtml}
+            <div class="msg-body">${formatMarkdown(m.content)}</div>
+          </div>
+        `;
+      }).join('');
+
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function attachPathPrompt() {
+      const p = prompt('Digite ou cole o caminho do arquivo/pasta do seu PC (ex: c:\\mj3d\\serve.cjs ou c:\\windows\\notepad.exe):');
+      if (p && p.trim()) {
+        STATE.attachments.push(p.trim());
+        renderAttachments();
+      }
+    }
+
+    function renderAttachments() {
+      const el = document.getElementById('attachmentList');
+      el.innerHTML = STATE.attachments.map((p, i) => `
+        <div class="att-chip">
+          <span>📁 ${escapeHtml(p)}</span>
+          <button onclick="STATE.attachments.splice(${i},1);renderAttachments()">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function quickPrompt(text) {
+      document.getElementById('chatInput').value = text;
+      sendMessage();
+    }
+
+    function promptPeInspect() {
+      const p = prompt('Caminho do executável (.exe / .dll) para análise PE/COFF:', 'C:\\Windows\\System32\\notepad.exe');
+      if (p && p.trim()) {
+        quickPrompt(`Use a ferramenta inspect_pe_binary para analisar em detalhes o binário "${p.trim()}" (arquitetura, ImageBase, EntryPoint, entropia das seções para detectar packers e principais strings).`);
+      }
+    }
+
+    async function sendMessage() {
+      if (STATE.busy) return;
+      const input = document.getElementById('chatInput');
+      let text = input.value.trim();
+      if (!text && !STATE.attachments.length) return;
+
+      if (STATE.attachments.length) {
+        text = `[ARQUIVOS/CAMINHOS ANEXADOS NO PC: ${STATE.attachments.join(', ')}]\n` + text;
+        STATE.attachments = [];
+        renderAttachments();
+      }
+
+      input.value = '';
+      const s = getActiveSession();
+      const ag = getActiveAgent();
+      const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      if (s.messages.length === 0) {
+        s.title = text.slice(0, 34);
+      }
+
+      s.messages.push({
+        role: 'user',
+        content: text,
+        time: nowStr
+      });
+
+      STATE.busy = true;
+      document.getElementById('sendBtn').disabled = true;
+      document.getElementById('statusHint').textContent = 'EXECUTANDO AGENTE & FERRAMENTAS...';
+      renderAll();
+
+      try {
+        const apiMessages = s.messages.map(m => ({ role: m.role, content: m.content }));
+        const r = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agentId: ag.id,
+            provider: document.getElementById('providerSelect').value,
+            messages: apiMessages
+          })
+        });
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || 'Erro desconhecido na resposta do agente');
+
+        s.messages.push({
+          role: 'assistant',
+          agentName: ag.name,
+          content: d.reply,
+          toolLogs: d.toolLogs || [],
+          provider: `${d.provider} (${d.model})`,
+          time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        });
+
+        // Adiciona aos logs da coluna direita
+        if (d.toolLogs && d.toolLogs.length) {
+          const logContainer = document.getElementById('toolLogList');
+          d.toolLogs.forEach(tl => {
+            const div = document.createElement('div');
+            div.className = 'term-box';
+            div.innerHTML = `<div style="color:var(--amber);margin-bottom:4px"><strong>${escapeHtml(tl.tool)}</strong> (${tl.durationMs}ms)</div><div class="term-out">${escapeHtml(JSON.stringify(tl.result, null, 2).slice(0, 800))}</div>`;
+            logContainer.prepend(div);
+          });
+        }
+
+        await persistSessions();
+        // Atualiza memórias caso o agente tenha gravado alguma
+        const stRes = await fetch('/api/state');
+        const stData = await stRes.json();
+        if (stData.ok) STATE.memories = stData.memories;
+      } catch (err) {
+        s.messages.push({
+          role: 'assistant',
+          agentName: 'ERRO DE EXECUÇÃO',
+          content: `Falha: ${err.message}\n\nDica: Você pode abrir o botão "POOL DE IAs (FreeLLM)" no topo para colar uma chave gratuita da Groq, Gemini ou OpenRouter.`,
+          time: nowStr
+        });
+      } finally {
+        STATE.busy = false;
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('statusHint').textContent = 'PRONTO';
+        renderAll();
+      }
+    }
+
+    document.getElementById('chatInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // ─── INSPETOR DIREITO: TERMINAL, ARQUIVOS E MEMÓRIA ───────────────────────
+    function switchInspTab(tabId, btn) {
+      document.querySelectorAll('.insp-tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.insp-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    }
+
+    function toggleInspector() {
+      document.getElementById('workstation').classList.toggle('right-collapsed');
+    }
+
+    async function runDirectShell() {
+      const inp = document.getElementById('directCmdInput');
+      const out = document.getElementById('directCmdOut');
+      const cmd = inp.value.trim();
+      if (!cmd) return;
+      out.textContent = `PS> ${cmd}\nExecutando...`;
+      const r = await fetch('/api/tool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool: 'run_shell', args: { command: cmd } })
+      });
+      const d = await r.json();
+      const res = d.result || {};
+      out.textContent = `PS> ${cmd}\n${res.stdout || ''}${res.stderr ? '\n[STDERR]\n' + res.stderr : ''}`;
+    }
+
+    async function browseDir(dirPath) {
+      const inp = document.getElementById('explorerPathInput');
+      inp.value = dirPath;
+      const list = document.getElementById('explorerList');
+      list.innerHTML = `<div style="font-family:var(--font-mono);font-size:11px;color:var(--text-2)">Lendo ${escapeHtml(dirPath)}...</div>`;
+      const r = await fetch('/api/tool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tool: 'list_dir', args: { dirPath } })
+      });
+      const d = await r.json();
+      if (!d.result || !d.result.ok) {
+        list.innerHTML = `<div style="color:var(--crimson);font-size:11px">${escapeHtml(d.result?.error || 'Erro ao abrir pasta')}</div>`;
+        return;
+      }
+      const entries = d.result.entries || [];
+      list.innerHTML = entries.map(e => {
+        const full = (dirPath.endsWith('\\') ? dirPath : dirPath + '\\') + e.name;
+        const escapedFull = full.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        if (e.type === 'dir') {
+          return `<div class="file-row" onclick="browseDir('${escapedFull}')"><span>📁 <strong>${escapeHtml(e.name)}</strong></span><span style="color:var(--text-2)">DIR</span></div>`;
+        }
+        const isBin = /\.(exe|dll|sys)$/i.test(e.name);
+        return `
+          <div class="file-row" onclick="${isBin ? `quickPrompt('Analise o binário PE ${escapedFull} usando inspect_pe_binary.')` : `quickPrompt('Leia e analise o arquivo ${escapedFull} usando read_file.')`}">
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px">${isBin ? '⚙' : '📄'} ${escapeHtml(e.name)}</span>
+            <span style="color:var(--amber)">${isBin ? 'PE-ANALYZE' : (e.size / 1024).toFixed(1) + ' KB'}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function browseUp() {
+      const cur = document.getElementById('explorerPathInput').value.replace(/\\+$/, '');
+      const idx = cur.lastIndexOf('\\');
+      if (idx <= 2) browseDir('c:\\');
+      else browseDir(cur.slice(0, idx));
+    }
+
+    function renderMemories() {
+      const box = document.getElementById('memoryList');
+      if (!STATE.memories.length) {
+        box.innerHTML = `<div style="font-size:11.5px;color:var(--text-2)">Nenhuma memória salva ainda. Peça ao agente "lembre-se que..." ou adicione acima.</div>`;
+        return;
+      }
+      box.innerHTML = STATE.memories.map(m => `
+        <div class="term-box" style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;justify-content:space-between;color:var(--amber)">
+            <strong>${escapeHtml(m.key)}</strong>
+            <span style="cursor:pointer;color:var(--crimson)" onclick="deleteMemory('${m.id}')">✕</span>
+          </div>
+          <div style="color:var(--text-1);font-size:11px">${escapeHtml(m.content)}</div>
+        </div>
+      `).join('');
+    }
+
+    async function addMemoryManual() {
+      const k = document.getElementById('memKey').value.trim();
+      const c = document.getElementById('memContent').value.trim();
+      if (!k || !c) return;
+      const r = await fetch('/api/memory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: k, content: c })
+      });
+      const d = await r.json();
+      if (d.ok) {
+        STATE.memories = d.memories;
+        document.getElementById('memKey').value = '';
+        document.getElementById('memContent').value = '';
+        renderMemories();
+      }
+    }
+
+    async function deleteMemory(id) {
+      const r = await fetch('/api/memory?id=' + encodeURIComponent(id), { method: 'DELETE' });
+      const d = await r.json();
+      if (d.ok) {
+        STATE.memories = d.memories;
+        renderMemories();
+      }
+    }
+
+    // ─── MODAL DE PROVEDORES (FreeLLMAPI) ─────────────────────────────────────
+    function openProviderModal() {
+      const box = document.getElementById('providerRows');
+      box.innerHTML = (STATE.config.providers || []).map((p, idx) => `
+        <div class="prov-row">
+          <div>
+            <label style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:12.5px;cursor:pointer">
+              <input type="checkbox" data-idx="${idx}" class="prov-en" ${p.enabled ? 'checked' : ''} />
+              ${escapeHtml(p.name)}
+            </label>
+            <div style="font-size:11px;color:var(--text-2);margin-top:3px">${escapeHtml(p.note || '')}</div>
+          </div>
+          <input type="text" data-idx="${idx}" class="field-input prov-mod" value="${escapeHtml(p.model)}" title="Modelo" />
+          <input type="password" data-idx="${idx}" class="field-input prov-key" value="${escapeHtml(p.apiKey || '')}" placeholder="${p.requiresKey ? 'Cole a API Key aqui...' : 'Sem chave necessária'}" />
+        </div>
+      `).join('');
+      document.getElementById('providerModal').classList.add('open');
+    }
+
+    function closeProviderModal() {
+      document.getElementById('providerModal').classList.remove('open');
+    }
+
+    async function saveProviders() {
+      const provs = JSON.parse(JSON.stringify(STATE.config.providers || []));
+      document.querySelectorAll('.prov-en').forEach(el => {
+        provs[el.dataset.idx].enabled = el.checked;
+      });
+      document.querySelectorAll('.prov-mod').forEach(el => {
+        provs[el.dataset.idx].model = el.value.trim();
+      });
+      document.querySelectorAll('.prov-key').forEach(el => {
+        provs[el.dataset.idx].apiKey = el.value.trim();
+      });
+
+      const r = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providers: provs })
+      });
+      const d = await r.json();
+      if (d.ok) {
+        STATE.config = d.config;
+        closeProviderModal();
+        renderAll();
+      }
+    }
+
+    // ─── MODAL CRIADOR DE AGENTES ─────────────────────────────────────────────
+    function openAgentModal() {
+      document.getElementById('agName').value = '';
+      document.getElementById('agRole').value = '';
+      document.getElementById('agBadge').value = 'CUSTOM';
+      document.getElementById('agPrompt').value = 'Você é um agente especialista trabalhando localmente na máquina de clack. Seja direto, técnico, sem enrolação e execute as ferramentas locais sempre que necessário.';
+      document.getElementById('agentModal').classList.add('open');
+    }
+
+    function closeAgentModal() {
+      document.getElementById('agentModal').classList.remove('open');
+    }
+
+    async function saveCustomAgent() {
+      const name = document.getElementById('agName').value.trim();
+      const role = document.getElementById('agRole').value.trim();
+      const badge = document.getElementById('agBadge').value.trim();
+      const systemPrompt = document.getElementById('agPrompt').value.trim();
+      const toolsEnabled = document.getElementById('agTools').checked;
+      if (!name || !systemPrompt) return alert('Preencha o nome e o System Prompt do agente!');
+
+      const r = await fetch('/api/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, role, badge, systemPrompt, toolsEnabled, color: '#3b82f6' })
+      });
+      const d = await r.json();
+      if (d.ok) {
+        STATE.agents = d.agents;
+        STATE.activeAgentId = d.agent.id;
+        closeAgentModal();
+        createNewSession();
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeProviderModal();
+        closeAgentModal();
+      }
+    });
+
+    loadState();
+  </script>
+</body>
+</html>

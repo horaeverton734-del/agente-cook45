@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: agente-cook45
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node serve.cjs
+    envVars:
+      - key: NODE_VERSION
+        value: 20

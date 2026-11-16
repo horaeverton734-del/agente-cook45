@@ -1,0 +1,12 @@
+{
+  "name": "agente-cook45",
+  "version": "1.0.0",
+  "description": "Agente Autônomo Local cook45 — Multi-LLM Pool + Execução de Sistema + Engenharia Reversa + Memória Persistente",
+  "main": "serve.cjs",
+  "scripts": {
+    "start": "node serve.cjs"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
