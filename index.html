@@ -852,6 +852,10 @@
       <div class="session-list" id="sessionList"></div>
 
       <div class="quick-ops">
+        <button class="op-btn" onclick="quickPrompt('Gere o relatório do dia completo com todas as conversas e modificações que fizemos hoje.')">
+          <strong>[DIÁRIO] Relatório do Dia</strong>
+          <span>Conversas & Modificações</span>
+        </button>
         <button class="op-btn" onclick="quickPrompt('Liste os processos que mais estão consumindo memória RAM no meu PC agora usando scan_processes.')">
           <strong>[PROC] Processos</strong>
           <span>Top RAM / PIDs ativos</span>
@@ -863,10 +867,6 @@
         <button class="op-btn" onclick="quickPrompt('Vasculhe a pasta c:\\ e me dê um resumo técnico dos projetos instalados usando list_dir.')">
           <strong>[DISK] Scan C:\</strong>
           <span>Mapear diretórios locais</span>
-        </button>
-        <button class="op-btn" onclick="openProviderModal()">
-          <strong>[POOL] FreeLLM</strong>
-          <span>Chaves & Roteamento</span>
         </button>
       </div>
     </aside>

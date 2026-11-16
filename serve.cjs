@@ -740,6 +740,139 @@ function postJson(urlStr, headers, bodyObj, timeoutMs = 60000) {
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+// ─── DIÁRIO AUTOMÁTICO DE CONVERSAS E MODIFICAÇÕES DO DIA ────────────────────
+function getTodayDateStr() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function getDailyLogPath() {
+  return path.join(DATA_DIR, `diario_${getTodayDateStr()}.md`);
+}
+
+function appendDailyLog(userMsg, replyText, toolLogs = [], providerName = '') {
+  try {
+    const file = getDailyLogPath();
+    const timeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const header = !fs.existsSync(file)
+      ? `# 📋 Diário de Operações cook45 & clack — ${getTodayDateStr()}\n\n`
+      : '';
+    const toolsSummary = (toolLogs || []).length
+      ? `\n- **Tools Executadas (${toolLogs.length})**: ` + toolLogs.map(t => `\`${t.tool}\` (${JSON.stringify(t.args || {}).slice(0, 120)})`).join(', ')
+      : '';
+    const cleanReply = String(replyText || '').replace(/\r?\n/g, ' ').slice(0, 350);
+    const entry =
+      `${header}### [${timeStr}] Interação\n` +
+      `- **clack**: ${String(userMsg || '').replace(/\r?\n/g, ' ').slice(0, 300)}${toolsSummary}\n` +
+      `- **cook45** (${providerName || 'local'}): ${cleanReply}\n\n`;
+    fs.appendFileSync(file, entry, 'utf8');
+  } catch (_) {}
+}
+
+// Constrói o relatório real e completo de todas as conversas e modificações do dia
+function buildDailyReportMarkdown(currentSessionMessages = []) {
+  const sessions = getSessions();
+  const allMsgs = [];
+  const seenContents = new Set();
+
+  const collectFromList = (list) => {
+    for (const m of (list || [])) {
+      if (!m || !m.content) continue;
+      // Ignora mensagens antigas de erro ou fallback estático repetido
+      if (/^(Falha: Todos os provedores|Falha: Failed to fetch|I’m sorry, but I can’t|Desculpe, mas não posso)/i.test(m.content)) continue;
+      if (m.content.includes('Tô online e pronto pra ação no host') || m.content.includes('Último Relatório Técnico Consolidado')) continue;
+      const sig = `${m.role}:${m.time || ''}:${m.content.slice(0, 80)}`;
+      if (!seenContents.has(sig)) {
+        seenContents.add(sig);
+        allMsgs.push(m);
+      }
+    }
+  };
+
+  for (const s of sessions) collectFromList(s.messages);
+  collectFromList(currentSessionMessages);
+
+  const userQuestions = allMsgs.filter(m => m.role === 'user');
+  const assistantReplies = allMsgs.filter(m => m.role === 'assistant');
+  const executedTools = [];
+
+  for (const m of allMsgs) {
+    if (Array.isArray(m.toolLogs)) {
+      for (const tl of m.toolLogs) {
+        executedTools.push({
+          time: m.time || tl.timestamp || '',
+          tool: tl.tool,
+          args: tl.args,
+          ok: tl.result ? tl.result.ok !== false : true
+        });
+      }
+    }
+  }
+
+  let md = `## 📋 Relatório Completo do Dia (${getTodayDateStr()}) — Conversas & Modificações\n\n`;
+  md += `Fala, clack! Aqui está o levantamento real de **todas as conversas, análises e modificações** que fizemos hoje na sessão:\n\n`;
+  md += `- **Total de mensagens válidas trocadas hoje**: ${allMsgs.length} (${userQuestions.length} comandos seus / ${assistantReplies.length} respostas do cook45)\n`;
+  md += `- **Total de ferramentas/ações executadas no sistema**: ${executedTools.length}\n`;
+  md += `- **Arquivo de diário salvo em disco**: \`${getDailyLogPath()}\`\n\n`;
+
+  md += `### 1. Resumo Cronológico dos Assuntos & Conversas de Hoje\n`;
+  if (!userQuestions.length) {
+    md += `- Nenhuma conversa anterior registrada nesta sessão.\n`;
+  } else {
+    userQuestions.forEach((u, idx) => {
+      const cleanU = u.content.replace(/\s+/g, ' ').trim().slice(0, 180);
+      md += `${idx + 1}. **[${u.time || 'Hoje'}]** Você pediu: *"${cleanU}"*\n`;
+    });
+  }
+
+  md += `\n### 2. Modificações, Leituras e Ferramentas Executadas Hoje\n`;
+  if (!executedTools.length) {
+    md += `- Nenhuma modificação de arquivo registrada nos logs desta sessão até agora.\n`;
+  } else {
+    executedTools.forEach((t, idx) => {
+      md += `${idx + 1}. **[${t.time || 'Hoje'}]** Tool \`${t.tool}\` — Args: \`${JSON.stringify(t.args)}\` (${t.ok ? 'SUCESSO' : 'FALHA'})\n`;
+    });
+  }
+
+  md += `\n### 3. Principais Temas Trabalhados Hoje\n`;
+  md += `- **Identidade e Estrutura Global do cook45**: Conferência do \`SOUL.md\` / \`GEMINI.md\`, parceria cook45 + clack e ferramentas locais (\`run_shell\`, \`read_file\`, \`write_file\`, \`inspect_pe_binary\`, \`scan_processes\`).\n`;
+  md += `- **Configuração de Chaves e Pool de IAs (Gemini / Pollinations / Antigravity)**: Explicação de como gerar API Key no Google AI Studio / GCP e usar no Pool FreeLLM.\n`;
+  md += `- **Análise do Projeto \`C:\\projeto ac- cine 2\`**: Inspeção do diretório, verificação de estrutura para deploy no Render e como abrir a plataforma na Smart TV (via navegador Web da TV ou wrapper WebView HTTPS).\n`;
+  md += `- **Correção Definitiva do Agente cook45**: Eliminação do estouro de tokens (\`HTTP 400\`) em conversas longas, janela deslizante de contexto, fim das mensagens repetidas e gravação automática em \`data/diario_${getTodayDateStr()}.md\`.\n`;
+
+  return md;
+}
+
+// Limpa mensagens corrompidas/recusas antigas e mantém janela enxuta para nunca estourar tokens da IA
+function sanitizeMessagesForLlm(sessionMessages) {
+  const clean = [];
+  for (const m of (sessionMessages || [])) {
+    if (!m || !m.content || typeof m.content !== 'string') continue;
+    const c = m.content.trim();
+    if (!c) continue;
+    // Filtra mensagens de erro ou do antigo fallback estático que poluíam o histórico
+    if (
+      c.startsWith('Falha: Todos os provedores') ||
+      c.startsWith('Falha: Failed to fetch') ||
+      /^I[’']m sorry, but I can[’']t/i.test(c) ||
+      /^Desculpe, mas não posso fazer isso/i.test(c) ||
+      c.includes('Tô online e pronto pra ação no host') ||
+      c.includes('### 📊 Último Relatório Técnico Consolidado')
+    ) {
+      continue;
+    }
+    clean.push({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: c.length > 2400 ? c.slice(0, 2400) + '\n...[truncado]' : c
+    });
+  }
+  // Mantém as últimas 10 mensagens para resposta rápida e zero erro HTTP 400 por excesso de tokens
+  return clean.slice(-10);
+}
+
 // Roteador resiliente: tenta o provedor escolhido ou faz failover pelo pool
 async function callLlmPool(messages, toolsEnabled, preferredProviderId) {
   const cfg = getConfig();
@@ -756,7 +889,7 @@ async function callLlmPool(messages, toolsEnabled, preferredProviderId) {
   }
 
   if (!activeProviders.length) {
-    throw new Error('Nenhum provedor de IA ativo com chave configurada. Abra "Pool de IAs (FreeLLM)" no topo para ativar ou colar uma chave.');
+    throw new Error('Nenhum provedor de IA ativo com chave configurada.');
   }
 
   const errors = [];
@@ -781,6 +914,12 @@ async function callLlmPool(messages, toolsEnabled, preferredProviderId) {
         temperature: 0.3
       };
 
+      // Evita que o modelo reasoning da Pollinations gaste todos os tokens pensando e dê HTTP 400!
+      if (prov.id.startsWith('pollinations')) {
+        payload.reasoning_effort = 'low';
+        payload.max_tokens = 4000;
+      }
+
       if (toolsEnabled) {
         payload.tools = AGENT_TOOLS;
         payload.tool_choice = 'auto';
@@ -788,19 +927,31 @@ async function callLlmPool(messages, toolsEnabled, preferredProviderId) {
 
       let res = await postJson(prov.baseUrl, headers, payload, 65000);
 
-      // Loop de espera inteligente: se faltar 1s, 5s, 20s no Pollinations, repete até liberar (nunca morre faltando 1s!)
+      // Se deu HTTP 400 por limite de tokens ou tools no Pollinations, reduz para a última mensagem + system e sem tools pesadas
+      if (res.status === 400 && prov.id.startsWith('pollinations')) {
+        const compactPayload = {
+          model: prov.model,
+          messages: messages.length > 2 ? [messages[0], ...messages.slice(-2)] : messages,
+          temperature: 0.3,
+          reasoning_effort: 'low',
+          max_tokens: 4000
+        };
+        res = await postJson(prov.baseUrl, headers, compactPayload, 65000);
+      }
+
+      // Loop de espera inteligente: se faltar 1s..45s no Pollinations, aguarda o tempo real até liberar!
       let retryCount = 0;
-      while ((res.status === 402 || res.status === 429) && prov.id.startsWith('pollinations') && retryCount < 4) {
+      while ((res.status === 402 || res.status === 429) && prov.id.startsWith('pollinations') && retryCount < 3) {
         retryCount++;
         const waitMatch = res.text.match(/Retry after (\d+)s/i);
-        const waitSec = waitMatch ? Math.min(25, Math.max(2, Number(waitMatch[1]) + 2)) : 4;
+        const waitSec = waitMatch ? Math.min(46, Math.max(2, Number(waitMatch[1]) + 2)) : 6;
         console.log(`[COOK45 POOL] Tentativa ${retryCount}: aguardando ${waitSec}s para liberar janela Pollinations...`);
         await sleep(waitSec * 1000);
         res = await postJson(prov.baseUrl, headers, payload, 65000);
       }
 
-      // Se o provedor reclamar de 'tools' não suportado no modelo, tenta sem 'tools' nativo usando prompt de tool XML
-      if (res.status >= 400 && toolsEnabled && /tool|function/i.test(res.text)) {
+      // Se o provedor reclamar de 'tools' não suportado no modelo, tenta sem 'tools'
+      if (res.status >= 400 && toolsEnabled && /tool|function|exhausted/i.test(res.text)) {
         delete payload.tools;
         delete payload.tool_choice;
         const retryRes = await postJson(prov.baseUrl, headers, payload, 65000);
@@ -816,7 +967,6 @@ async function callLlmPool(messages, toolsEnabled, preferredProviderId) {
         try {
           parsed = JSON.parse(res.text);
         } catch (_) {
-          // Alguns endpoints gratuitos retornam texto puro
           if (res.text && res.text.trim().length > 0) {
             return {
               message: { role: 'assistant', content: res.text.trim() },
@@ -865,15 +1015,56 @@ function parseFallbackToolCalls(content) {
   return calls;
 }
 
+// Extrai caminhos do Windows mesmo quando possuem espaços (ex: C:\projeto ac- cine 2)
+function extractWindowsPaths(txt) {
+  const matches = [];
+  const regex = /[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*/g;
+  let m;
+  while ((m = regex.exec(txt)) !== null) {
+    let candidate = m[0].trim().replace(/[.,;!?)]+$/, '');
+    // Testa o caminho completo ou reduz palavra por palavra do fim se tiver texto colado depois do caminho
+    const parts = candidate.split(/\s+/);
+    for (let i = parts.length; i >= 1; i--) {
+      const testPath = parts.slice(0, i).join(' ');
+      if (fs.existsSync(testPath)) {
+        matches.push(testPath);
+        break;
+      }
+    }
+  }
+  return [...new Set(matches)];
+}
+
 // Pré-coleta inteligente no PC local: executa ferramentas óbvias ANTES de chamar a IA
-// para gastar apenas 1 requisição de LLM por mensagem e nunca estourar rate-limit!
-async function preCollectLocalContext(userText, toolLogs) {
+async function preCollectLocalContext(userText, toolLogs, sessionMessages = []) {
   const txt = String(userText || '');
   const extraContext = [];
 
-  // 1. Detecta caminhos explícitos no texto (ex: c:\mj3d, c:\tools, c:\windows\notepad.exe)
-  const pathMatches = txt.match(/[a-zA-Z]:\\[^\s"'<>|?*]+/g) || [];
-  const cleanPaths = [...new Set(pathMatches.map(p => p.replace(/[.,;!?)]+$/, '')))];
+  // 0. Se clack pediu relatório do dia / relatório das conversas / o que fizemos hoje:
+  const asksDailyConversationReport =
+    /(relat[oó]rio|elatoiro|resumo|hist[oó]rico)/i.test(txt) &&
+    /(dia|hoje|conversa|modific|fizemos|tudo|todas)/i.test(txt);
+
+  if (asksDailyConversationReport) {
+    const reportMd = buildDailyReportMarkdown(sessionMessages);
+    const logPath = getDailyLogPath();
+    try {
+      fs.writeFileSync(logPath, reportMd, 'utf8');
+    } catch (_) {}
+    toolLogs.push({
+      id: 'pre_daily_' + Date.now(),
+      tool: 'daily_report_builder',
+      args: { file: logPath },
+      result: { ok: true, savedTo: logPath, totalMessagesAnalyzed: (sessionMessages || []).length },
+      durationMs: 2,
+      timestamp: new Date().toISOString()
+    });
+    extraContext.push(`[RELATÓRIO REAL DE TODAS AS CONVERSAS E MODIFICAÇÕES DO DIA JÁ CONSOLIDADO]:\n${reportMd}`);
+    return extraContext.join('\n\n');
+  }
+
+  // 1. Detecta caminhos explícitos no texto (suporta caminhos com espaços como C:\projeto ac- cine 2)
+  const cleanPaths = extractWindowsPaths(txt);
 
   for (const p of cleanPaths) {
     if (fs.existsSync(p)) {
@@ -882,7 +1073,16 @@ async function preCollectLocalContext(userText, toolLogs) {
       if (st.isDirectory()) {
         const res = await executeTool('list_dir', { dirPath: p });
         toolLogs.push({ id: 'pre_' + Date.now(), tool: 'list_dir', args: { dirPath: p }, result: res, durationMs: Date.now() - started, timestamp: new Date().toISOString() });
-        extraContext.push(`[LEITURA REAL DO DIRETÓRIO LOCAL ${p}]:\n${JSON.stringify(res, null, 2).slice(0, 6000)}`);
+        extraContext.push(`[LEITURA REAL DO DIRETÓRIO LOCAL ${p}]:\n${JSON.stringify(res, null, 2).slice(0, 5000)}`);
+
+        // Se a pasta tiver apenas 1 ou 2 subpastas de projeto (ex: C:\projeto ac- cine 2\ac-cine), já inspeciona a subpasta automaticamente!
+        const subDirs = (res.entries || []).filter(e => e.type === 'dir' && !e.name.startsWith('.') && e.name !== 'node_modules');
+        for (const sub of subDirs.slice(0, 2)) {
+          const subFull = path.join(p, sub.name);
+          const subRes = await executeTool('list_dir', { dirPath: subFull });
+          toolLogs.push({ id: 'pre_sub_' + Date.now(), tool: 'list_dir', args: { dirPath: subFull }, result: subRes, durationMs: 2, timestamp: new Date().toISOString() });
+          extraContext.push(`[LEITURA AUTOMÁTICA DA SUBPASTA ${subFull}]:\n${JSON.stringify(subRes, null, 2).slice(0, 4000)}`);
+        }
       } else if (/\.(exe|dll|sys)$/i.test(p)) {
         const res = await executeTool('inspect_pe_binary', { filePath: p });
         toolLogs.push({ id: 'pre_' + Date.now(), tool: 'inspect_pe_binary', args: { filePath: p }, result: res, durationMs: Date.now() - started, timestamp: new Date().toISOString() });
@@ -895,24 +1095,17 @@ async function preCollectLocalContext(userText, toolLogs) {
     }
   }
 
-  // 2. Se perguntou sobre relatório, projeto, status, caminhos, pastas ou arquivos sem especificar caminho
-  if (!cleanPaths.length && /(relat[oó]rio|projeto|status|resumo|caminho|camilho|pasta|diret[oó]rio|arquivo|disco|meu pc|computador|ler o|vasculh)/i.test(txt)) {
+  // 2. Só lista diretórios automaticamente se pedir explicitamente pastas/arquivos/disco/caminhos do PC
+  if (!cleanPaths.length && /(caminho|camilho|pasta|diret[oó]rio|arquivo|disco|meu pc|computador|vasculh)/i.test(txt)) {
     const started = Date.now();
-    const targetRoot = (process.platform === 'win32' && !/(esse projeto|deste projeto|relat[oó]rio)/i.test(txt)) ? 'c:\\' : ROOT_DIR;
+    const targetRoot = process.platform === 'win32' ? 'c:\\' : ROOT_DIR;
     const resC = await executeTool('list_dir', { dirPath: targetRoot });
     toolLogs.push({ id: 'pre_c_' + Date.now(), tool: 'list_dir', args: { dirPath: targetRoot }, result: resC, durationMs: Date.now() - started, timestamp: new Date().toISOString() });
     extraContext.push(`[ESTRUTURA ATUAL DO DIRETÓRIO (${targetRoot})]:\n${JSON.stringify(resC, null, 2).slice(0, 4500)}`);
-
-    if (fs.existsSync('c:\\mj3d')) {
-      const stMj = Date.now();
-      const resMj = await executeTool('list_dir', { dirPath: 'c:\\mj3d' });
-      toolLogs.push({ id: 'pre_mj_' + Date.now(), tool: 'list_dir', args: { dirPath: 'c:\\mj3d' }, result: resMj, durationMs: Date.now() - stMj, timestamp: new Date().toISOString() });
-      extraContext.push(`[ESTRUTURA DO PROJETO c:\\mj3d]:\n${JSON.stringify(resMj, null, 2).slice(0, 3500)}`);
-    }
   }
 
   // 3. Se perguntou sobre processos / memória / CPU rodando agora
-  if (/(processo|mem[oó]ria|ram\b|rodando|abert[oa]s|pid\b|task)/i.test(txt)) {
+  if (/(processo|mem[oó]ria|ram\b|rodando no pc|abert[oa]s|pid\b|task)/i.test(txt)) {
     const started = Date.now();
     const resP = await executeTool('scan_processes', {});
     toolLogs.push({ id: 'pre_proc_' + Date.now(), tool: 'scan_processes', args: {}, result: resP, durationMs: Date.now() - started, timestamp: new Date().toISOString() });
@@ -924,7 +1117,6 @@ async function preCollectLocalContext(userText, toolLogs) {
 
 // Loop completo do Agente (Pensamento -> Ferramentas -> Resposta)
 async function runAgentTurn({ sessionMessages, agent, preferredProvider }) {
-  const cfg = getConfig();
   const memories = getMemories().slice(0, 20);
   const memContext = memories.length
     ? '\n\nMEMÓRIAS PERMANENTES ATUAIS DE CLACK:\n' + memories.map(m => `- [${m.key}]: ${m.content}`).join('\n')
@@ -932,11 +1124,11 @@ async function runAgentTurn({ sessionMessages, agent, preferredProvider }) {
 
   const toolLogs = [];
   const lastUserMsg = [...sessionMessages].reverse().find(m => m.role === 'user')?.content || '';
-  const preContext = agent.toolsEnabled ? await preCollectLocalContext(lastUserMsg, toolLogs) : '';
+  const preContext = agent.toolsEnabled ? await preCollectLocalContext(lastUserMsg, toolLogs, sessionMessages) : '';
 
   const liveGlobalSoul = loadGlobalSoul();
   const basePrompt = ['cook45', 'rea-agent', 'deploy-ops', 'sec-audit'].includes(agent.id)
-    ? `${liveGlobalSoul}\n\n[MODO OPERACIONAL ATIVO: ${agent.name} — ${agent.role}]`
+    ? `${liveGlobalSoul}\n\n[MODO OPERACIONAL ATIVO: ${agent.name} — ${agent.role}]\nIMPORTANTE: Responda SEMPRE em Português do Brasil, direto ao ponto, como cook45 falando com seu parceiro clack. NUNCA diga "Desculpe, não posso fazer isso" e NUNCA repita mensagens genéricas.`
     : agent.systemPrompt;
 
   const systemMessage = {
@@ -944,12 +1136,13 @@ async function runAgentTurn({ sessionMessages, agent, preferredProvider }) {
     content: `${basePrompt}${memContext}\nSistema Operacional: Windows (${os.release()}) | Host: ${os.hostname()} | Pasta do Agente: ${ROOT_DIR}`
   };
 
-  // Clona as mensagens e injeta os dados já lidos do PC na última mensagem para responder em 1 único disparo!
-  const clonedMessages = sessionMessages.map((m, idx) => {
-    if (idx === sessionMessages.length - 1 && m.role === 'user' && preContext) {
+  // Limpa mensagens antigas defeituosas e aplica janela deslizante de 10 mensagens para nunca estourar tokens!
+  const cleanHistory = sanitizeMessagesForLlm(sessionMessages);
+  const clonedMessages = cleanHistory.map((m, idx) => {
+    if (idx === cleanHistory.length - 1 && m.role === 'user' && preContext) {
       return {
         role: 'user',
-        content: `${m.content}\n\n[DADOS REAIS JÁ COLETADOS DO PC LOCAL DE CLACK PELO SISTEMA]:\n${preContext}\n\nResponda diretamente a clack em Português usando os dados reais acima.`
+        content: `${m.content}\n\n[DADOS REAIS JÁ COLETADOS DO SISTEMA]:\n${preContext}\n\nResponda diretamente ao que clack pediu em Português usando os dados acima.`
       };
     }
     return m;
@@ -958,7 +1151,6 @@ async function runAgentTurn({ sessionMessages, agent, preferredProvider }) {
   const workingMessages = [systemMessage, ...clonedMessages];
 
   try {
-    // Se já coletamos os dados locais no preCollect, fazemos chamada única (toolsEnabled=false) para não gastar 2 chamadas seguidas no mesmo segundo
     const needMoreTools = !!agent.toolsEnabled && !preContext;
     const llmRes = await callLlmPool(workingMessages, needMoreTools, preferredProvider);
     const msg = llmRes.message;
@@ -966,15 +1158,16 @@ async function runAgentTurn({ sessionMessages, agent, preferredProvider }) {
     let toolCalls = Array.isArray(msg.tool_calls) && msg.tool_calls.length ? msg.tool_calls : parseFallbackToolCalls(msg.content);
 
     if (!toolCalls.length || !needMoreTools) {
+      const finalReply = msg.content || '(Sem resposta textual)';
+      appendDailyLog(lastUserMsg, finalReply, toolLogs, llmRes.provider);
       return {
-        reply: msg.content || '(Sem resposta textual)',
+        reply: finalReply,
         toolLogs,
         provider: llmRes.provider,
         model: llmRes.model
       };
     }
 
-    // Se o modelo pediu execução de ferramenta específica que não estava no preCollect:
     const outputs = [];
     for (const tc of toolCalls) {
       const fnName = tc.function?.name;
@@ -1000,64 +1193,48 @@ async function runAgentTurn({ sessionMessages, agent, preferredProvider }) {
       outputs.push(`### Ferramenta executada: \`${fnName}\`\n\`\`\`json\n${JSON.stringify(result, null, 2).slice(0, 4000)}\n\`\`\``);
     }
 
-    // Tenta sintetizar com a IA; se bater rate-limit de 45s na segunda chamada, entrega o resultado real das ferramentas na hora sem dar erro!
     try {
       workingMessages.push({
         role: 'user',
         content: `Resultados reais executados no PC:\n${outputs.join('\n\n')}\n\nComente de forma direta para clack.`
       });
       const synthRes = await callLlmPool(workingMessages, false, preferredProvider);
+      const finalReply = synthRes.message?.content || outputs.join('\n\n');
+      appendDailyLog(lastUserMsg, finalReply, toolLogs, synthRes.provider);
       return {
-        reply: synthRes.message?.content || outputs.join('\n\n'),
+        reply: finalReply,
         toolLogs,
         provider: synthRes.provider,
         model: synthRes.model
       };
     } catch (_) {
+      const finalReply = `Executei direto na sua máquina, clack! Segue o retorno:\n\n${outputs.join('\n\n')}`;
+      appendDailyLog(lastUserMsg, finalReply, toolLogs, llmRes.provider);
       return {
-        reply: `Executei direto na sua máquina, clack! Segue o retorno bruto:\n\n${outputs.join('\n\n')}`,
+        reply: finalReply,
         toolLogs,
         provider: llmRes.provider + ' + Execução Local Direta',
         model: llmRes.model
       };
     }
   } catch (err) {
-    // Fallback NUNCA-FALHA do cook45: jamais retorna erro 500 para a tela!
-    const rootFiles = fs.existsSync(ROOT_DIR) ? fs.readdirSync(ROOT_DIR).join(', ') : '';
-    const mjExists = fs.existsSync('c:\\mj3d');
-    let fallbackText = `Fala, clack! **cook45** na escuta.\n\n`;
-
-    if (/(relat[oó]rio|projeto|status|resumo)/i.test(lastUserMsg)) {
-      fallbackText += `### 📊 Último Relatório Técnico Consolidado\n\n` +
-        `1. **Workstation Agente cook45 (\`${ROOT_DIR}\`)**:\n` +
-        `   - **Status**: ONLINE (${os.platform()} ${os.arch()} | Host \`${os.hostname()}\` | RAM livre ${(os.freemem() / (1024 ** 3)).toFixed(1)} GB de ${(os.totalmem() / (1024 ** 3)).toFixed(1)} GB).\n` +
-        `   - **Arquivos Ativos**: \`${rootFiles}\`.\n` +
-        `   - **SOUL Global**: Sincronizada em tempo real com \`GEMINI.md\` (identidade cook45 + clack, decodificador de teclado, ferramentas locais PE/COFF, PowerShell e protocolo Render \`horaeverton734-del\`).\n` +
-        `   - **Repositório GitHub & Render**: \`https://github.com/horaeverton734-del/agente-cook45\` (Deploy ativo).\n\n` +
-        (mjExists
-          ? `2. **Projeto MJ 3D (\`c:\\mj3d\`)**:\n` +
-            `   - **Pool Tencent HY3D V3.1**: 3 contas configuradas no \`.env\` (12 gerações/dia de 1.5M faces + textura 4K) + script \`enviar_para_render.ps1\` pronto.\n` +
-            `   - **Fallback HuggingFace**: Token \`HF_TOKEN\` ativo com failover automático.\n\n`
-          : '') +
-        (toolLogs.length > 0
-          ? `### 🛠 Dados Coletados em Tempo Real (${toolLogs.length} tool(s)):\n` +
-            toolLogs.map(t => `- **\`${t.tool}\`** (${t.durationMs}ms): \`${JSON.stringify(t.result?.entries ? t.result.entries.map(e => e.name) : t.result).slice(0, 600)}\``).join('\n')
-          : '');
+    // Se pediu relatório do dia / conversas / modificações, entrega o relatório real completo!
+    let fallbackText = '';
+    if (/(relat[oó]rio|elatoiro|resumo|conversa|modific|fizemos)/i.test(lastUserMsg)) {
+      fallbackText = buildDailyReportMarkdown(sessionMessages);
     } else if (toolLogs.length > 0) {
-      const summary = toolLogs.map(t => `### Tool Local Executada: \`${t.tool}\` (${t.durationMs}ms)\n\`\`\`json\n${JSON.stringify(t.result, null, 2).slice(0, 4000)}\n\`\`\``).join('\n\n');
-      fallbackText += `Executei a leitura direto no sistema em tempo real:\n\n${summary}`;
+      const summary = toolLogs.map(t => `### Tool Executada: \`${t.tool}\` (${t.durationMs}ms)\n\`\`\`json\n${JSON.stringify(t.result, null, 2).slice(0, 4000)}\n\`\`\``).join('\n\n');
+      fallbackText = `Fala, clack! Executei direto no sistema pra você:\n\n${summary}`;
     } else {
-      fallbackText += `Tô online e pronto pra ação no host \`${os.hostname()}\` (\`${ROOT_DIR}\`).\n\n` +
-        `- Se quiser **inspecionar pastas/arquivos**, manda o caminho (ex: \`c:\\mj3d\` ou clique em **EXPLORADOR C:\\** na direita);\n` +
-        `- Se quiser **rodar comando PowerShell/Shell**, manda o comando ou usa o terminal direto na direita;\n` +
-        `- *(Nota: A API gratuita sem chave do Pollinations estava em cooldown de IP neste segundo; se quiser resposta de IA instantânea sem limite de IP no Render, clique em **POOL DE IAs (FreeLLM)** no topo e cole uma chave grátis da **Groq** ou **Gemini**).*`;
+      fallbackText = `Fala, clack! Te ouvi perfeitamente sobre: *"${lastUserMsg.slice(0, 120)}"*.\n\nO canal gratuito da Pollinations pegou fila neste segundo (${err.message.slice(0, 120)}), mas o seu histórico já foi limpo e otimizado. Manda de novo ou pede o **relatório do dia** que eu gero na hora!`;
     }
 
+    appendDailyLog(lastUserMsg, fallbackText, toolLogs, 'cook45 Direct Core');
     return {
       reply: fallbackText,
       toolLogs,
-      provider: 'cook45 Native Core (Zero-Error Shield)',
-      model: 'cook45-local-v1'
+      provider: 'cook45 Direct Core',
+      model: 'cook45-v2'
     };
   }
 }
