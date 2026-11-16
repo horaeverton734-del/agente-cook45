@@ -22,7 +22,7 @@
       "model": "openai-fast",
       "apiKey": "free-no-key-needed",
       "requiresKey": false,
-      "enabled": true,
+      "enabled": false,
       "priority": 2,
       "note": "Segundo canal gratuito sem chave (OVH Reasoning 20B)"
     },
