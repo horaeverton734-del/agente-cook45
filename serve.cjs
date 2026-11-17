@@ -935,6 +935,10 @@ async function callLlmPool(messages, toolsEnabled, preferredProviderId) {
         payload.reasoning_effort = 'low';
         payload.max_tokens = 4000;
       }
+      // Limita max_tokens na Groq Free Tier para respeitar OTPM (Output Tokens Per Minute) e nunca dar HTTP 429
+      if (prov.id === 'groq') {
+        payload.max_tokens = prov.model.includes('qwen') ? 850 : 1500;
+      }
 
       if (toolsEnabled) {
         payload.tools = AGENT_TOOLS;
