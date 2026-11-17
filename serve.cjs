@@ -939,15 +939,16 @@ async function callLlmPool(messages, toolsEnabled, preferredProviderId) {
         res = await postJson(prov.baseUrl, headers, compactPayload, 65000);
       }
 
-      // Loop de espera inteligente: se faltar 1s..45s no Pollinations, aguarda o tempo real até liberar!
-      let retryCount = 0;
-      while ((res.status === 402 || res.status === 429) && prov.id.startsWith('pollinations') && retryCount < 3) {
-        retryCount++;
+      // Espera curta inteligente: só aguarda se faltar <= 23s para não estourar timeout do Render (502/Failed to fetch)
+      if ((res.status === 402 || res.status === 429) && prov.id.startsWith('pollinations')) {
         const waitMatch = res.text.match(/Retry after (\d+)s/i);
-        const waitSec = waitMatch ? Math.min(46, Math.max(2, Number(waitMatch[1]) + 2)) : 6;
-        console.log(`[COOK45 POOL] Tentativa ${retryCount}: aguardando ${waitSec}s para liberar janela Pollinations...`);
-        await sleep(waitSec * 1000);
-        res = await postJson(prov.baseUrl, headers, payload, 65000);
+        const rawWait = waitMatch ? Number(waitMatch[1]) : 5;
+        if (rawWait <= 23) {
+          const waitSec = Math.max(2, rawWait + 1);
+          console.log(`[COOK45 POOL] Aguardando ${waitSec}s para liberar janela Pollinations...`);
+          await sleep(waitSec * 1000);
+          res = await postJson(prov.baseUrl, headers, payload, 45000);
+        }
       }
 
       // Se o provedor reclamar de 'tools' não suportado no modelo, tenta sem 'tools'
