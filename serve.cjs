@@ -199,11 +199,11 @@ const DEFAULT_CONFIG = {
       id: 'groq',
       name: 'Groq Cloud (Ultra-Rápido Free Tier)',
       baseUrl: 'https://api.groq.com/openai/v1/chat/completions',
-      model: 'llama-3.3-70b-versatile',
+      model: 'qwen/qwen3.8-27b',
       apiKey: process.env.GROQ_API_KEY || '',
       requiresKey: true,
       enabled: true,
-      priority: 3,
+      priority: process.env.GROQ_API_KEY ? 0 : 1,
       note: 'Pegue chave grátis em console.groq.com (14.400 req/dia)'
     },
     {
@@ -310,8 +310,24 @@ function getConfig() {
   for (const def of DEFAULT_CONFIG.providers) {
     if (!map.has(def.id)) {
       saved.providers.push(def);
-    } else if (def.id === 'huggingface' && !map.get(def.id).apiKey && def.apiKey) {
-      map.get(def.id).apiKey = def.apiKey;
+    } else {
+      const existing = map.get(def.id);
+      if (def.id === 'huggingface' && !existing.apiKey && def.apiKey) {
+        existing.apiKey = def.apiKey;
+      }
+      if (def.id === 'groq') {
+        if (existing.model === 'llama-3.3-70b-versatile') existing.model = 'qwen/qwen3.8-27b';
+        if (process.env.GROQ_API_KEY && !existing.apiKey) {
+          existing.apiKey = process.env.GROQ_API_KEY.trim();
+          existing.enabled = true;
+          existing.priority = 0;
+        }
+      }
+      if (def.id === 'gemini' && process.env.GEMINI_API_KEY && !existing.apiKey) {
+        existing.apiKey = process.env.GEMINI_API_KEY.trim();
+        existing.enabled = true;
+        existing.priority = 1;
+      }
     }
   }
   return saved;
@@ -878,7 +894,7 @@ async function callLlmPool(messages, toolsEnabled, preferredProviderId) {
   const cfg = getConfig();
   const activeProviders = (cfg.providers || [])
     .filter(p => p.enabled && (!p.requiresKey || (p.apiKey && p.apiKey.trim().length > 0)))
-    .sort((a, b) => (a.priority || 99) - (b.priority || 99));
+    .sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99));
 
   if (preferredProviderId && preferredProviderId !== 'auto') {
     const idx = activeProviders.findIndex(p => p.id === preferredProviderId);
